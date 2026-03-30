@@ -15,7 +15,7 @@ async function getAllBookings({ page = 1, limit = 20, userId, status } = {}) {
 
   let query = supabaseAdmin
     .from(TABLE)
-    .select('*, pg_listings(id, name, address), profiles(id, full_name, phone)', { count: 'exact' })
+    .select('*, pg_listings(id, name, location), profiles(id, full_name, phone)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -31,7 +31,7 @@ async function getAllBookings({ page = 1, limit = 20, userId, status } = {}) {
 async function getBookingById(id) {
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .select('*, pg_listings(id, name, address), profiles(id, full_name, phone)')
+    .select('*, pg_listings(id, name, location), profiles(id, full_name, phone)')
     .eq('id', id)
     .single();
 

@@ -41,7 +41,7 @@ async function getStats() {
 async function getRecentBookings(limit = 10) {
   const { data, error } = await supabaseAdmin
     .from('bookings')
-    .select('*, pg_listings(name, address), profiles(full_name, phone)')
+    .select('*, pg_listings(name, location), profiles(full_name, phone)')
     .order('created_at', { ascending: false })
     .limit(limit);
 
