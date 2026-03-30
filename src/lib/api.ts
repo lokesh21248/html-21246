@@ -6,7 +6,8 @@
 
 import type { ApiResponse, ApiError } from "./types";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api/v1";
+// Note: Vite only exposes VITE_ prefixed vars, but added for compatibility if switched
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
 /**
  * Get the current auth token from localStorage (set after Supabase login)
