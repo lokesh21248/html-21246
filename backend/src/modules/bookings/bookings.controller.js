@@ -1,6 +1,7 @@
 'use strict';
 
 const bookingsService = require('./bookings.service');
+const emailService = require('../../services/email.service');
 const { sendSuccess } = require('../../utils/apiResponse');
 
 async function getAll(req, res) {
@@ -36,6 +37,20 @@ async function getOne(req, res) {
 async function create(req, res) {
   const payload = { ...req.body, user_id: req.user.id };
   const booking = await bookingsService.createBooking(payload);
+  
+  // Asynchronously fetch full details and send confirmation email
+  bookingsService.getBookingById(booking.id).then(fullBooking => {
+    emailService.sendBookingConfirmation({
+      userEmail: req.user.email || fullBooking.profiles?.email,
+      userName: fullBooking.profiles?.full_name,
+      pgName: fullBooking.pg_listings?.name,
+      bookingId: booking.id,
+      status: booking.status
+    });
+  }).catch(err => {
+    console.error('Failed to trigger booking email:', err.message);
+  });
+
   sendSuccess(res, booking, 201);
 }
 
