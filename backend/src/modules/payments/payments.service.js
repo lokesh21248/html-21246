@@ -4,6 +4,26 @@ const { supabaseAdmin } = require('../../config/supabase');
 const { AppError } = require('../../middleware/errorHandler');
 
 const TABLE = 'payments';
+const VALID_STATUSES = ['pending', 'completed', 'failed', 'refunded'];
+
+function buildPaymentPayload(payload = {}) {
+  const paymentPayload = {
+    booking_id: payload.booking_id,
+    user_id: payload.user_id,
+    amount: Number(payload.amount) || 0,
+    status: VALID_STATUSES.includes(payload.status) ? payload.status : 'pending',
+  };
+
+  if (!paymentPayload.booking_id) {
+    throw new AppError('Booking is required', 400);
+  }
+
+  if (paymentPayload.amount <= 0) {
+    throw new AppError('Amount must be greater than zero', 400);
+  }
+
+  return paymentPayload;
+}
 
 /**
  * Payments Service
@@ -15,7 +35,7 @@ async function getAllPayments({ page = 1, limit = 20, userId, status } = {}) {
 
   let query = supabaseAdmin
     .from(TABLE)
-    .select('*, bookings(id, status), profiles(id, full_name)', { count: 'exact' })
+    .select('*, bookings(id, status)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -25,13 +45,22 @@ async function getAllPayments({ page = 1, limit = 20, userId, status } = {}) {
   const { data, error, count } = await query;
   if (error) throw new AppError(error.message, 500);
 
-  return { payments: data, total: count, page, limit };
+  // Fetch profiles separately
+  const userIds = [...new Set((data || []).map((p) => p.user_id).filter(Boolean))];
+  const { data: profiles } = userIds.length
+    ? await supabaseAdmin.from('profiles').select('id, full_name').in('id', userIds)
+    : { data: [] };
+  const profileMap = (profiles || []).reduce((acc, p) => { acc[p.id] = p; return acc; }, {});
+
+  const enriched = (data || []).map((p) => ({ ...p, profiles: profileMap[p.user_id] || null }));
+
+  return { payments: enriched, total: count, page, limit };
 }
 
 async function getPaymentById(id) {
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .select('*, bookings(id, status), profiles(id, full_name)')
+    .select('*, bookings(id, status)')
     .eq('id', id)
     .single();
 
@@ -43,9 +72,11 @@ async function getPaymentById(id) {
 }
 
 async function createPayment(payload) {
+  const paymentPayload = buildPaymentPayload(payload);
+
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .insert([{ ...payload, status: 'pending' }])
+    .insert([paymentPayload])
     .select()
     .single();
 
@@ -56,7 +87,6 @@ async function createPayment(payload) {
 async function updatePaymentStatus(id, status) {
   await getPaymentById(id);
 
-  const VALID_STATUSES = ['pending', 'completed', 'failed', 'refunded'];
   if (!VALID_STATUSES.includes(status)) {
     throw new AppError(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`, 400);
   }

@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.pg_listings (
     reception_phone TEXT,
     capacity INT DEFAULT 0,
     occupied INT DEFAULT 0,
+    room_types JSONB DEFAULT '[]'::jsonb,
     gender TEXT,
     property_type TEXT,
     one_day_stay BOOLEAN DEFAULT false,
@@ -44,12 +45,14 @@ CREATE TABLE IF NOT EXISTS public.pg_listings (
     has_ac BOOLEAN DEFAULT false,
     has_non_ac BOOLEAN DEFAULT false,
     has_gaming_space BOOLEAN DEFAULT false,
-    gaming_space_area TEXT,
+    gaming_space_area INT DEFAULT 0,
     has_parking BOOLEAN DEFAULT false,
     parking_capacity INT DEFAULT 0,
     status TEXT DEFAULT 'active',
+    food_menu JSONB DEFAULT '{}'::jsonb,
     image_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 3. PG Images Table (used for multiple images)
@@ -65,6 +68,9 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     listing_id UUID REFERENCES public.pg_listings(id) ON DELETE CASCADE,
+    check_in DATE NOT NULL,
+    check_out DATE NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
     status TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -4,6 +4,83 @@ const { supabaseAdmin } = require('../../config/supabase');
 const { AppError } = require('../../middleware/errorHandler');
 
 const TABLE = 'pg_listings';
+const LISTING_FIELDS = [
+  'name',
+  'location',
+  'latitude',
+  'longitude',
+  'reception_phone',
+  'capacity',
+  'occupied',
+  'room_types',
+  'gender',
+  'property_type',
+  'one_day_stay',
+  'has_gym',
+  'has_ac',
+  'has_non_ac',
+  'has_gaming_space',
+  'gaming_space_area',
+  'has_parking',
+  'parking_capacity',
+  'status',
+  'food_menu',
+  'image_url',
+];
+
+function normalizeListingStatus(status) {
+  return String(status || 'active').toLowerCase() === 'inactive' ? 'inactive' : 'active';
+}
+
+function normalizeRoomTypes(roomTypes) {
+  if (!Array.isArray(roomTypes)) return [];
+
+  return roomTypes
+    .map((room) => ({
+      variant: room?.variant || 'Single',
+      price_ac: Number(room?.price_ac) || 0,
+      price_non_ac: Number(room?.price_non_ac) || 0,
+      available: Number(room?.available) || 0,
+    }))
+    .filter((room) => room.variant);
+}
+
+function normalizeFoodMenu(foodMenu) {
+  const source = foodMenu && typeof foodMenu === 'object' ? foodMenu : {};
+
+  return {
+    breakfast: Boolean(source.breakfast),
+    lunch: Boolean(source.lunch),
+    dinner: Boolean(source.dinner),
+    menu_details: source.menu_details || '',
+  };
+}
+
+function buildListingPayload(payload = {}) {
+  const sanitized = {};
+
+  LISTING_FIELDS.forEach((field) => {
+    if (payload[field] !== undefined) {
+      sanitized[field] = payload[field];
+    }
+  });
+
+  if ('status' in sanitized) {
+    sanitized.status = normalizeListingStatus(sanitized.status);
+  }
+
+  if ('capacity' in sanitized) sanitized.capacity = Number(sanitized.capacity) || 0;
+  if ('occupied' in sanitized) sanitized.occupied = Number(sanitized.occupied) || 0;
+  if ('latitude' in sanitized) sanitized.latitude = Number(sanitized.latitude) || 0;
+  if ('longitude' in sanitized) sanitized.longitude = Number(sanitized.longitude) || 0;
+  if ('gaming_space_area' in sanitized) sanitized.gaming_space_area = Number(sanitized.gaming_space_area) || 0;
+  if ('parking_capacity' in sanitized) sanitized.parking_capacity = Number(sanitized.parking_capacity) || 0;
+  if ('room_types' in sanitized) sanitized.room_types = normalizeRoomTypes(sanitized.room_types);
+  if ('food_menu' in sanitized) sanitized.food_menu = normalizeFoodMenu(sanitized.food_menu);
+  if ('image_url' in sanitized && !sanitized.image_url) sanitized.image_url = null;
+
+  return sanitized;
+}
 
 /**
  * Listings Service — all Supabase operations for pg_listings
@@ -16,17 +93,17 @@ async function getAllListings({ page = 1, limit = 20, search, status } = {}) {
   let query = supabaseAdmin
     .from(TABLE)
     .select(
-      'id, name, location, latitude, longitude, reception_phone, capacity, occupied, gender, property_type, one_day_stay, has_gym, has_ac, has_non_ac, has_gaming_space, gaming_space_area, has_parking, parking_capacity, status, image_url, created_at',
+      'id, name, location, latitude, longitude, reception_phone, capacity, occupied, room_types, gender, property_type, one_day_stay, has_gym, has_ac, has_non_ac, has_gaming_space, gaming_space_area, has_parking, parking_capacity, status, food_menu, image_url, created_at, updated_at',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
     .range(from, to);
 
   if (search) {
-    query = query.ilike('name', `%${search}%`);
+    query = query.or(`name.ilike.%${search}%,location.ilike.%${search}%`);
   }
   if (status) {
-    query = query.eq('status', status);
+    query = query.eq('status', normalizeListingStatus(status));
   }
 
   const { data, error, count } = await query;
@@ -51,9 +128,11 @@ async function getListingById(id) {
 }
 
 async function createListing(payload) {
+  const listingPayload = buildListingPayload(payload);
+
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .insert([payload])
+    .insert([listingPayload])
     .select()
     .single();
 
@@ -65,9 +144,11 @@ async function updateListing(id, payload) {
   // Confirm exists first
   await getListingById(id);
 
+  const listingPayload = buildListingPayload(payload);
+
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .update(payload)
+    .update({ ...listingPayload, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();

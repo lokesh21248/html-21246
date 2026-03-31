@@ -11,6 +11,17 @@ const REQUIRED_VARS = [
   'SUPABASE_SERVICE_ROLE_KEY',
 ];
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://html-21246.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173',
+];
+
+function normalizeOrigin(origin = '') {
+  return origin.trim().replace(/\/$/, '').toLowerCase();
+}
+
 const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
@@ -29,13 +40,19 @@ const config = Object.freeze({
     anonKey: process.env.SUPABASE_ANON_KEY,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   },
-  allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
-    .split(',')
-    .map((o) => o.trim()),
+  allowedOrigins: Array.from(
+    new Set([
+      ...DEFAULT_ALLOWED_ORIGINS.map((origin) => normalizeOrigin(origin)),
+      ...(process.env.ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((origin) => normalizeOrigin(origin))
+        .filter(Boolean),
+    ])
+  ),
   rateLimit: {
     windowMs: 60 * 1000,  // 1 minute
     max: 100,             // 100 requests per window
   },
 });
 
-module.exports = config;
+module.exports = { ...config, normalizeOrigin };

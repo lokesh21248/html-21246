@@ -1,325 +1,302 @@
-import { useState } from "react";
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  CheckCircle, 
-  Clock, 
-  XCircle,
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
   ArrowUpRight,
-  TrendingUp
+  CheckCircle,
+  Clock,
+  CreditCard,
+  Download,
+  Loader2,
+  Search,
+  TrendingUp,
+  X,
+  XCircle,
 } from "lucide-react";
-
-// Dummy data
-const payments = [
-  {
-    id: "PAY001",
-    user: "Rahul Sharma",
-    pg: "Green Valley PG",
-    amount: 144000,
-    date: "2026-03-20",
-    method: "UPI",
-    transactionId: "UPI2026032012345",
-    status: "Success",
-  },
-  {
-    id: "PAY002",
-    user: "Priya Patel",
-    pg: "Sunrise Heights",
-    amount: 93000,
-    date: "2026-03-24",
-    method: "Credit Card",
-    transactionId: "CC2026032487654",
-    status: "Pending",
-  },
-  {
-    id: "PAY003",
-    user: "Amit Kumar",
-    pg: "City Center PG",
-    amount: 63000,
-    date: "2026-03-15",
-    method: "Net Banking",
-    transactionId: "NB2026031534567",
-    status: "Success",
-  },
-  {
-    id: "PAY004",
-    user: "Sneha Singh",
-    pg: "Comfort Inn",
-    amount: 156000,
-    date: "2026-03-22",
-    method: "Debit Card",
-    transactionId: "DC2026032298765",
-    status: "Success",
-  },
-  {
-    id: "PAY005",
-    user: "Vikram Reddy",
-    pg: "Student Haven",
-    amount: 33000,
-    date: "2026-03-18",
-    method: "UPI",
-    transactionId: "UPI2026031856789",
-    status: "Failed",
-  },
-  {
-    id: "PAY006",
-    user: "Ananya Iyer",
-    pg: "Sunrise Heights",
-    amount: 93000,
-    date: "2026-03-26",
-    method: "Credit Card",
-    transactionId: "CC2026032623456",
-    status: "Pending",
-  },
-  {
-    id: "PAY007",
-    user: "Rohan Mehta",
-    pg: "Green Valley PG",
-    amount: 144000,
-    date: "2026-03-27",
-    method: "UPI",
-    transactionId: "UPI2026032765432",
-    status: "Success",
-  },
-  {
-    id: "PAY008",
-    user: "Kavya Nair",
-    pg: "City Center PG",
-    amount: 63000,
-    date: "2026-03-25",
-    method: "Net Banking",
-    transactionId: "NB2026032554321",
-    status: "Success",
-  },
-];
+import { toast } from "sonner";
+import { paymentsApi } from "../../lib/api";
+import type { Payment } from "../../lib/types";
+import { themeColors, useTheme } from "./ThemeContext";
 
 const statusConfig = {
-  Success: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-  Pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  Failed: { color: "bg-red-100 text-red-800", icon: XCircle },
+  completed: { color: "bg-green-100 text-green-800", icon: CheckCircle },
+  pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
+  failed: { color: "bg-red-100 text-red-800", icon: XCircle },
+  refunded: { color: "bg-gray-100 text-gray-800", icon: XCircle },
 };
 
 export function Payments() {
+  const { theme } = useTheme();
+  const colors = themeColors[theme];
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [livePayments, setLivePayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
-  const filteredPayments = payments.filter((payment) => {
-    const matchesSearch =
-      payment.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.transactionId.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterStatus === "All" || payment.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const loadPayments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await paymentsApi.getAll();
+      if (response.success) setLivePayments(response.data);
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch payments");
+      toast.error("Failed to fetch payments");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalRevenue = payments
-    .filter((p) => p.status === "Success")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const pendingAmount = payments
-    .filter((p) => p.status === "Pending")
-    .reduce((sum, p) => sum + p.amount, 0);
+  useEffect(() => {
+    loadPayments();
+  }, []);
+
+  const filteredPayments = useMemo(() => {
+    return livePayments.filter((payment) => {
+      const userName = payment.profiles?.full_name?.toLowerCase() || "";
+      const bookingId = payment.booking_id?.toLowerCase() || "";
+      const matchesSearch =
+        payment.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        userName.includes(searchQuery.toLowerCase()) ||
+        bookingId.includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        filterStatus === "All" || payment.status === filterStatus.toLowerCase();
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [filterStatus, livePayments, searchQuery]);
+
+  const totalRevenue = livePayments
+    .filter((payment) => payment.status === "completed")
+    .reduce((sum, payment) => sum + payment.amount, 0);
+
+  const pendingAmount = livePayments
+    .filter((payment) => payment.status === "pending")
+    .reduce((sum, payment) => sum + payment.amount, 0);
+
+  const handleExportCsv = () => {
+    if (filteredPayments.length === 0) {
+      toast.error("There are no payments to export");
+      return;
+    }
+
+    const rows = [
+      ["payment_id", "user_name", "booking_id", "amount", "status", "created_at"],
+      ...filteredPayments.map((payment) => [
+        payment.id,
+        payment.profiles?.full_name || "",
+        payment.booking_id || "",
+        String(payment.amount),
+        payment.status,
+        payment.created_at,
+      ]),
+    ];
+
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "payments-export.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV export generated");
+  };
+
+  if (loading && livePayments.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (error && livePayments.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Payments</h2>
+        <p className="text-gray-500 mb-6 max-w-md">{error}</p>
+        <button onClick={loadPayments} className={`px-6 py-2 ${colors.primary} text-white rounded-xl shadow-lg`}>
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
-          <p className="text-gray-500 mt-1">Track and manage all payment transactions</p>
+          <p className="text-gray-500 mt-1">Track revenue, payment states, and booking-linked transactions.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+        <button
+          onClick={handleExportCsv}
+          className={`flex items-center gap-2 px-4 py-2 ${colors.primary} text-white rounded-xl shadow-lg`}
+        >
           <Download className="w-5 h-5" />
-          Export Report
+          Export CSV
         </button>
       </div>
 
-      {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6">
+        <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-6 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-              <p className="text-3xl font-bold mt-2">₹{totalRevenue.toLocaleString()}</p>
-              <div className="flex items-center gap-1 mt-3">
-                <TrendingUp className="w-4 h-4" />
-                <span className="text-sm font-medium">+18.2% from last month</span>
+              <p className="text-sm text-white/80">Total Revenue</p>
+              <p className="mt-2 text-3xl font-bold">Rs. {totalRevenue.toLocaleString()}</p>
+              <div className="mt-3 flex items-center gap-1 text-sm">
+                <TrendingUp className="h-4 w-4" />
+                <span>Validated</span>
               </div>
             </div>
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-7 h-7" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
+              <CheckCircle className="h-7 w-7" />
             </div>
           </div>
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Successful</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {payments.filter((p) => p.status === "Success").length}
-              </p>
+        {[
+          { label: "Successful", value: livePayments.filter((item) => item.status === "completed").length, note: "", color: "bg-green-100 text-green-600", icon: CheckCircle },
+          { label: "Pending", value: livePayments.filter((item) => item.status === "pending").length, note: `Rs. ${pendingAmount.toLocaleString()} volume`, color: "bg-yellow-100 text-yellow-600", icon: Clock },
+          { label: "Failed", value: livePayments.filter((item) => item.status === "failed").length, note: "", color: "bg-red-100 text-red-600", icon: XCircle },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">{card.label}</p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
+                  {card.note ? <p className="mt-1 text-xs text-gray-500">{card.note}</p> : null}
+                </div>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.color}`}>
+                  <Icon className="h-6 w-6" />
+                </div>
+              </div>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Pending</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {payments.filter((p) => p.status === "Pending").length}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">₹{pendingAmount.toLocaleString()}</p>
-            </div>
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Failed</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {payments.filter((p) => p.status === "Failed").length}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-              <XCircle className="w-6 h-6 text-red-600" />
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
-              type="text"
-              placeholder="Search by payment ID, user, or transaction ID..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by payment ID, user, or booking ID..."
+              className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option>All</option>
-              <option>Success</option>
-              <option>Pending</option>
-              <option>Failed</option>
-            </select>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <Filter className="w-5 h-5 text-gray-600" />
-              More Filters
-            </button>
-          </div>
+          <select
+            value={filterStatus}
+            onChange={(event) => setFilterStatus(event.target.value)}
+            className="rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option>All</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="refunded">Refunded</option>
+          </select>
         </div>
       </div>
 
-      {/* Payments Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Payment ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  PG Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Payment Method
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Transaction ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {["Payment ID", "User", "Booking ID", "Amount", "Date", "Status", "Actions"].map((heading) => (
+                  <th key={heading} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {heading}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPayments.map((payment) => {
-                const StatusIcon = statusConfig[payment.status as keyof typeof statusConfig].icon;
-                return (
-                  <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900">{payment.id}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-semibold text-indigo-700">
-                            {payment.user.charAt(0)}
-                          </span>
-                        </div>
-                        <span className="text-sm text-gray-900">{payment.user}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{payment.pg}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-gray-900">
-                        ₹{payment.amount.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{payment.method}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-500 font-mono">{payment.transactionId}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-500">{payment.date}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full ${
-                          statusConfig[payment.status as keyof typeof statusConfig].color
-                        }`}
-                      >
-                        <StatusIcon className="w-3 h-3" />
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                        <ArrowUpRight className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+            <tbody className="divide-y divide-gray-200">
+              {filteredPayments.length > 0 ? (
+                filteredPayments.map((payment) => {
+                  const config =
+                    statusConfig[payment.status as keyof typeof statusConfig] || statusConfig.pending;
+                  const StatusIcon = config.icon;
+
+                  return (
+                    <tr key={payment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-mono text-gray-600">{payment.id.slice(0, 8)}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{payment.profiles?.full_name || "Unknown User"}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{payment.booking_id?.slice(0, 8) || "N/A"}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">Rs. {payment.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {new Date(payment.created_at).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${config.color}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {payment.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => setSelectedPayment(payment)}
+                          className="rounded-lg border border-gray-200 p-2 text-indigo-600 hover:bg-indigo-50"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                    No transactions found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {selectedPayment ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-bold text-gray-900">Payment Details</h2>
+              <button onClick={() => setSelectedPayment(null)} className="rounded-lg p-2 hover:bg-gray-100">
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="grid gap-4 p-5 md:grid-cols-2">
+              <div className="rounded-2xl bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Transaction</p>
+                <div className="mt-3 space-y-2 text-sm text-gray-700">
+                  <div>ID: {selectedPayment.id}</div>
+                  <div>Status: {selectedPayment.status}</div>
+                  <div>Amount: Rs. {selectedPayment.amount.toLocaleString()}</div>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Linked Records</p>
+                <div className="mt-3 space-y-2 text-sm text-gray-700">
+                  <div>User: {selectedPayment.profiles?.full_name || "Unknown User"}</div>
+                  <div>Booking ID: {selectedPayment.booking_id || "N/A"}</div>
+                  <div>Date: {new Date(selectedPayment.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

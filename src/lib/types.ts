@@ -3,8 +3,10 @@
  * Keep in sync with Supabase pg_listings, bookings, profiles, payments tables.
  */
 
+export type ListingStatus = "active" | "inactive";
+
 export interface PGListing {
-  id: number;
+  id: string;
   name: string;
   location: string;
   latitude: number;
@@ -20,13 +22,14 @@ export interface PGListing {
   has_ac: boolean;
   has_non_ac: boolean;
   has_gaming_space: boolean;
-  gaming_space_area?: number;
+  gaming_space_area?: number | null;
   has_parking: boolean;
-  parking_capacity?: number;
+  parking_capacity?: number | null;
   food_menu?: FoodMenu;
-  status: "Active" | "Inactive";
-  image_url?: string;
+  status: ListingStatus;
+  image_url?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface RoomType {
@@ -46,10 +49,10 @@ export interface FoodMenu {
 export interface Booking {
   id: string;
   user_id: string;
-  listing_id: number;
+  listing_id: string;
   check_in: string;
   check_out: string;
-  duration: string;
+  duration?: string;
   amount: number;
   status: "pending" | "confirmed" | "cancelled" | "completed";
   created_at: string;
@@ -70,7 +73,7 @@ export interface UserProfile {
 export interface Payment {
   id: string;
   user_id: string;
-  booking_id: string;
+  booking_id: string | null;
   amount: number;
   status: "pending" | "completed" | "failed" | "refunded";
   created_at: string;
@@ -99,4 +102,15 @@ export interface ApiResponse<T> {
 export interface ApiError {
   success: false;
   error: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string | null;
+  user: {
+    id: string;
+    email?: string;
+    app_metadata?: Record<string, unknown>;
+    user_metadata?: Record<string, unknown>;
+  };
 }

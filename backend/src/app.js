@@ -9,9 +9,10 @@ const morgan = require('morgan');
 
 const config = require('./config/env');
 const { rateLimiter } = require('./middleware/rateLimiter');
-const { errorHandler } = require('./middleware/errorHandler');
+const { errorHandler, AppError } = require('./middleware/errorHandler');
 
 // Module routers
+const authRouter = require('./modules/auth/auth.routes');
 const listingsRouter = require('./modules/listings/listings.routes');
 const bookingsRouter = require('./modules/bookings/bookings.routes');
 const usersRouter = require('./modules/users/users.routes');
@@ -29,12 +30,18 @@ app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g., curl, Postman)
-    if (!origin || config.allowedOrigins.includes(origin)) {
+    const normalizedOrigin = config.normalizeOrigin(origin);
+
+    if (!origin || config.allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
-    callback(new Error(`Origin ${origin} not allowed by CORS`));
+
+    callback(new AppError(`Origin ${origin} not allowed by CORS`, 403));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 }));
 
 app.use(morgan(config.isProd ? 'combined' : 'dev'));
@@ -63,6 +70,7 @@ app.get('/health', (req, res) => {
 // ============================================================
 const API_PREFIX = '/api/v1';
 
+app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/listings`, listingsRouter);
 app.use(`${API_PREFIX}/bookings`, bookingsRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);

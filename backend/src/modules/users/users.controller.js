@@ -41,6 +41,11 @@ async function update(req, res) {
 }
 
 async function getStats(req, res) {
+  const isAdmin = req.user?.app_metadata?.role === 'admin';
+  if (!isAdmin && req.params.id !== req.user.id) {
+    return sendError(res, 'Access denied', 403);
+  }
+
   const stats = await usersService.getUserStats(req.params.id);
   sendSuccess(res, stats);
 }

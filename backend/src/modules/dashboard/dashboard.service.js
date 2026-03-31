@@ -39,14 +39,29 @@ async function getStats() {
 }
 
 async function getRecentBookings(limit = 10) {
-  const { data, error } = await supabaseAdmin
+  // Fetch bookings with listing info — use explicit FK hint (bookings.pg_id -> pg_listings)
+  const { data: bookings, error } = await supabaseAdmin
     .from('bookings')
-    .select('*, pg_listings(name, location), profiles(full_name, phone)')
+    .select('id, user_id, pg_id, status, created_at, pg_listings!pg_id(name, location)')
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (error) throw new AppError(error.message, 500);
-  return data;
+
+  if (!bookings || bookings.length === 0) return [];
+
+  // Fetch user profiles separately
+  const userIds = [...new Set(bookings.map((b) => b.user_id).filter(Boolean))];
+  const { data: profiles } = userIds.length
+    ? await supabaseAdmin.from('profiles').select('id, full_name, phone').in('id', userIds)
+    : { data: [] };
+
+  const profileMap = (profiles || []).reduce((acc, p) => { acc[p.id] = p; return acc; }, {});
+
+  return bookings.map((b) => ({
+    ...b,
+    profiles: profileMap[b.user_id] || null,
+  }));
 }
 
 async function getRevenueBreakdown() {

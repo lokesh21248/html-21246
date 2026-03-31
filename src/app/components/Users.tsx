@@ -1,284 +1,268 @@
-import { useState } from "react";
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  UserCheck, 
-  UserX, 
-  Mail, 
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  Calendar,
+  Copy,
+  Loader2,
+  Mail,
   Phone,
-  MapPin,
-  Calendar
+  Search,
+  UserCheck,
+  X,
 } from "lucide-react";
-
-// Dummy data
-const users = [
-  {
-    id: 1,
-    name: "Rahul Sharma",
-    email: "rahul.sharma@email.com",
-    phone: "+91 98765 43210",
-    location: "Mumbai, Maharashtra",
-    joinDate: "2024-01-15",
-    bookings: 3,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop",
-  },
-  {
-    id: 2,
-    name: "Priya Patel",
-    email: "priya.patel@email.com",
-    phone: "+91 98765 43211",
-    location: "Ahmedabad, Gujarat",
-    joinDate: "2024-02-20",
-    bookings: 1,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop",
-  },
-  {
-    id: 3,
-    name: "Amit Kumar",
-    email: "amit.kumar@email.com",
-    phone: "+91 98765 43212",
-    location: "Delhi, NCR",
-    joinDate: "2024-03-10",
-    bookings: 2,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop",
-  },
-  {
-    id: 4,
-    name: "Sneha Singh",
-    email: "sneha.singh@email.com",
-    phone: "+91 98765 43213",
-    location: "Pune, Maharashtra",
-    joinDate: "2023-11-05",
-    bookings: 5,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop",
-  },
-  {
-    id: 5,
-    name: "Vikram Reddy",
-    email: "vikram.reddy@email.com",
-    phone: "+91 98765 43214",
-    location: "Hyderabad, Telangana",
-    joinDate: "2024-01-25",
-    bookings: 1,
-    status: "Blocked",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop",
-  },
-  {
-    id: 6,
-    name: "Ananya Iyer",
-    email: "ananya.iyer@email.com",
-    phone: "+91 98765 43215",
-    location: "Chennai, Tamil Nadu",
-    joinDate: "2024-02-14",
-    bookings: 2,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop",
-  },
-  {
-    id: 7,
-    name: "Rohan Mehta",
-    email: "rohan.mehta@email.com",
-    phone: "+91 98765 43216",
-    location: "Bangalore, Karnataka",
-    joinDate: "2023-12-20",
-    bookings: 4,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop",
-  },
-  {
-    id: 8,
-    name: "Kavya Nair",
-    email: "kavya.nair@email.com",
-    phone: "+91 98765 43217",
-    location: "Kochi, Kerala",
-    joinDate: "2024-03-01",
-    bookings: 1,
-    status: "Active",
-    avatar: "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=150&h=150&fit=crop",
-  },
-];
+import { toast } from "sonner";
+import { usersApi } from "../../lib/api";
+import type { UserProfile } from "../../lib/types";
+import { themeColors, useTheme } from "./ThemeContext";
 
 export function Users() {
+  const { theme } = useTheme();
+  const colors = themeColors[theme];
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [liveUsers, setLiveUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [selectedStats, setSelectedStats] = useState<{ totalBookings: number; totalSpent: number } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone.includes(searchQuery);
-    const matchesFilter = filterStatus === "All" || user.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await usersApi.getAll();
+      if (response.success) setLiveUsers(response.data);
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch users");
+      toast.error("Failed to fetch users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    return liveUsers.filter((user) => {
+      const fullName = user.full_name?.toLowerCase() || "";
+      const email = user.email?.toLowerCase() || "";
+      const phone = user.phone || "";
+      const matchesSearch =
+        fullName.includes(searchQuery.toLowerCase()) ||
+        email.includes(searchQuery.toLowerCase()) ||
+        phone.includes(searchQuery);
+      const matchesFilter =
+        filterStatus === "All" ? true : filterStatus === "Active" ? true : false;
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [filterStatus, liveUsers, searchQuery]);
+
+  const openActivity = async (user: UserProfile) => {
+    setSelectedUser(user);
+    setSelectedStats(null);
+    setStatsLoading(true);
+
+    try {
+      const response = await usersApi.getStats(user.id);
+      if (response.success) setSelectedStats(response.data);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load user activity");
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const copyEmail = async (email?: string) => {
+    if (!email) {
+      toast.error("This user does not have an email address");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(email);
+      toast.success("Email copied to clipboard");
+    } catch {
+      toast.error("Failed to copy email");
+    }
+  };
+
+  if (loading && liveUsers.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (error && liveUsers.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Users</h2>
+        <p className="text-gray-500 mb-6 max-w-md">{error}</p>
+        <button onClick={loadUsers} className={`px-6 py-2 ${colors.primary} text-white rounded-xl shadow-lg`}>
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-        <p className="text-gray-500 mt-1">Manage all registered users</p>
+        <p className="text-gray-500 mt-1">Review registered users and inspect account activity.</p>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
-              type="text"
-              placeholder="Search by name, email, or phone..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by name, email, or phone..."
+              className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option>All</option>
-              <option>Active</option>
-              <option>Blocked</option>
-            </select>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <Filter className="w-5 h-5 text-gray-600" />
-              More Filters
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <UserCheck className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <UserCheck className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Active Users</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {users.filter((u) => u.status === "Active").length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <UserX className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Blocked Users</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {users.filter((u) => u.status === "Blocked").length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Users Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredUsers.map((user) => (
-          <div
-            key={user.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200"
+          <select
+            value={filterStatus}
+            onChange={(event) => setFilterStatus(event.target.value)}
+            className="rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="w-16 h-16 rounded-full object-cover"
-                />
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-                  <div className="flex items-center gap-1 mt-1 text-gray-500">
-                    <Mail className="w-4 h-4" />
-                    <span className="text-sm">{user.email}</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-1 text-gray-500">
-                    <Phone className="w-4 h-4" />
-                    <span className="text-sm">{user.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-1 text-gray-500">
-                    <MapPin className="w-4 h-4" />
-                    <span className="text-sm">{user.location}</span>
-                  </div>
-                </div>
-              </div>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <MoreVertical className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
+            <option>All</option>
+            <option>Active</option>
+            <option>Blocked</option>
+          </select>
+        </div>
+      </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Joined</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Calendar className="w-3 h-3 text-gray-400" />
-                      <span className="text-sm text-gray-900">{user.joinDate}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Total Bookings</p>
-                    <p className="text-sm font-semibold text-gray-900 mt-1">{user.bookings}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      user.status === "Active"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {user.status}
-                  </span>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          { label: "Total Registered Users", value: liveUsers.length },
+          { label: "Active Users", value: liveUsers.length },
+        ].map((card) => (
+          <div key={card.label} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                <UserCheck className="h-5 w-5" />
               </div>
-            </div>
-
-            <div className="mt-4 flex gap-2">
-              {user.status === "Active" ? (
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
-                  <UserX className="w-4 h-4" />
-                  Block User
-                </button>
-              ) : (
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
-                  <UserCheck className="w-4 h-4" />
-                  Unblock User
-                </button>
-              )}
-              <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                View Details
-              </button>
+              <div>
+                <p className="text-sm text-gray-500">{card.label}</p>
+                <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+              </div>
             </div>
           </div>
         ))}
       </div>
+
+      {filteredUsers.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredUsers.map((user) => (
+            <div key={user.id} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-indigo-200 bg-indigo-100 text-xl font-bold text-indigo-600">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
+                  ) : (
+                    user.full_name?.charAt(0).toUpperCase() || "U"
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-gray-900">{user.full_name || "Anonymous User"}</h2>
+                  <div className="mt-2 space-y-1 text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <span>{user.email || "No email"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      <span>{user.phone || "No phone"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        Joined{" "}
+                        {new Date(user.created_at).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                  ACTIVE
+                </span>
+              </div>
+
+              <div className="mt-5 flex gap-2">
+                <button
+                  onClick={() => copyEmail(user.email)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy Email
+                </button>
+                <button
+                  onClick={() => openActivity(user)}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white ${colors.primary}`}
+                >
+                  <UserCheck className="h-4 w-4" />
+                  View Activity
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center text-sm text-gray-500">
+          No users found matching your search.
+        </div>
+      )}
+
+      {selectedUser ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-bold text-gray-900">{selectedUser.full_name || "User Activity"}</h2>
+              <button onClick={() => setSelectedUser(null)} className="rounded-lg p-2 hover:bg-gray-100">
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="grid gap-4 p-5 md:grid-cols-2">
+              <div className="rounded-2xl bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Profile</p>
+                <div className="mt-3 space-y-2 text-sm text-gray-700">
+                  <div>{selectedUser.email || "No email"}</div>
+                  <div>{selectedUser.phone || "No phone"}</div>
+                  <div>ID: {selectedUser.id}</div>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Activity</p>
+                {statsLoading ? (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading stats...
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2 text-sm text-gray-700">
+                    <div>Total Bookings: {selectedStats?.totalBookings || 0}</div>
+                    <div>Total Spent: Rs. {(selectedStats?.totalSpent || 0).toLocaleString()}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
