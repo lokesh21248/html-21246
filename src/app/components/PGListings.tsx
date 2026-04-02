@@ -104,6 +104,7 @@ export function PGListings() {
   const [selectedListing, setSelectedListing] = useState<PGListing | null>(null);
   const [editingListing, setEditingListing] = useState<PGListing | null>(null);
   const [formData, setFormData] = useState<Partial<PGListing>>(createInitialForm());
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const loadListings = async () => {
     try {
@@ -158,6 +159,39 @@ export function PGListings() {
       return null;
     }
     return payload;
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setUploadingImage(true);
+    
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(file);
+      
+      const base64 = await base64Promise;
+      const response = await listingsApi.uploadImage(base64, file.name, file.type);
+      
+      if (response?.success && response.data?.url) {
+        setFormData(prev => ({ ...prev, image_url: response.data.url }));
+        toast.success("Image uploaded successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSave = async () => {
@@ -482,15 +516,22 @@ export function PGListings() {
                   </div>
                 </div>
 
-                <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-gray-600">Image URL</span>
-                  <input
-                    value={formData.image_url || ""}
-                    onChange={(event) => setFormData({ ...formData, image_url: event.target.value })}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="https://..."
-                  />
-                </label>
+                <div className="block">
+                  <span className="mb-1 block text-xs font-semibold text-gray-600">Property Image</span>
+                  <div className="flex items-center gap-3">
+                    {formData.image_url && (
+                      <img src={formData.image_url} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-gray-200" />
+                    )}
+                    <label className="flex-1 cursor-pointer rounded-xl border border-dashed border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600">
+                      {uploadingImage ? (
+                        <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</span>
+                      ) : (
+                        <span>Click to select an image</span>
+                      )}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImage} />
+                    </label>
+                  </div>
+                </div>
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-gray-600">Food Menu Notes</span>

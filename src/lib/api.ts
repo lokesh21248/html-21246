@@ -147,6 +147,12 @@ export const listingsApi = {
     apiFetch<any>(`/listings/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
 
   delete: (id: string) => apiFetch<any>(`/listings/${id}`, { method: "DELETE" }),
+
+  uploadImage: (imageBase64: string, filename: string, contentType: string) =>
+    apiFetch<{ url: string }>("/listings/upload-image", {
+      method: "POST",
+      body: JSON.stringify({ imageBase64, filename, contentType }),
+    }),
 };
 
 export const bookingsApi = {

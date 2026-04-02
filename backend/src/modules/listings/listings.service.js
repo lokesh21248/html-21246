@@ -169,10 +169,44 @@ async function deleteListing(id) {
   return { id, deleted: true };
 }
 
+async function uploadImage(base64Data, filename, contentType = 'image/jpeg') {
+  if (!base64Data) throw new AppError('No image data provided', 400);
+
+  const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  let buffer;
+  let type = contentType;
+
+  if (matches && matches.length === 3) {
+    type = matches[1];
+    buffer = Buffer.from(matches[2], 'base64');
+  } else {
+    buffer = Buffer.from(base64Data, 'base64');
+  }
+
+  // Generate unique filename to avoid overwrites
+  const uniqueFilename = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+
+  const { data, error } = await supabaseAdmin.storage
+    .from('pg-images')
+    .upload(uniqueFilename, buffer, {
+      contentType: type,
+      upsert: false
+    });
+
+  if (error) throw new AppError(error.message, 500);
+
+  const { data: publicUrlData } = supabaseAdmin.storage
+    .from('pg-images')
+    .getPublicUrl(uniqueFilename);
+
+  return { url: publicUrlData.publicUrl };
+}
+
 module.exports = {
   getAllListings,
   getListingById,
   createListing,
   updateListing,
   deleteListing,
+  uploadImage,
 };

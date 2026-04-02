@@ -43,4 +43,10 @@ async function remove(req, res) {
   sendSuccess(res, result);
 }
 
-module.exports = { getAll, getOne, create, update, remove };
+async function uploadImage(req, res) {
+  const { imageBase64, filename, contentType } = req.body;
+  const result = await listingsService.uploadImage(imageBase64, filename, contentType);
+  sendSuccess(res, result, 201);
+}
+
+module.exports = { getAll, getOne, create, update, remove, uploadImage };
