@@ -147,7 +147,7 @@ export function Payments() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-white/80">Total Revenue</p>
-              <p className="mt-2 text-3xl font-bold">Rs. {totalRevenue.toLocaleString()}</p>
+              <p className="mt-2 text-3xl font-bold">Rs. {(totalRevenue || 0).toLocaleString()}</p>
               <div className="mt-3 flex items-center gap-1 text-sm">
                 <TrendingUp className="h-4 w-4" />
                 <span>Validated</span>
@@ -160,7 +160,7 @@ export function Payments() {
         </div>
         {[
           { label: "Successful", value: livePayments.filter((item) => item.status === "completed").length, note: "", color: "bg-green-100 text-green-600", icon: CheckCircle },
-          { label: "Pending", value: livePayments.filter((item) => item.status === "pending").length, note: `Rs. ${pendingAmount.toLocaleString()} volume`, color: "bg-yellow-100 text-yellow-600", icon: Clock },
+          { label: "Pending", value: livePayments.filter((item) => item.status === "pending").length, note: `Rs. ${(pendingAmount || 0).toLocaleString()} volume`, color: "bg-yellow-100 text-yellow-600", icon: Clock },
           { label: "Failed", value: livePayments.filter((item) => item.status === "failed").length, note: "", color: "bg-red-100 text-red-600", icon: XCircle },
         ].map((card) => {
           const Icon = card.icon;
@@ -230,7 +230,7 @@ export function Payments() {
                       <td className="px-6 py-4 text-sm font-mono text-gray-600">{payment.id.slice(0, 8)}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{payment.profiles?.full_name || "Unknown User"}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{payment.booking_id?.slice(0, 8) || "N/A"}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">Rs. {payment.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">Rs. {(payment.amount || 0).toLocaleString()}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {new Date(payment.created_at).toLocaleDateString("en-IN", {
                           day: "numeric",
@@ -282,7 +282,7 @@ export function Payments() {
                 <div className="mt-3 space-y-2 text-sm text-gray-700">
                   <div>ID: {selectedPayment.id}</div>
                   <div>Status: {selectedPayment.status}</div>
-                  <div>Amount: Rs. {selectedPayment.amount.toLocaleString()}</div>
+                  <div>Amount: Rs. {(selectedPayment.amount || 0).toLocaleString()}</div>
                 </div>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4">

@@ -322,7 +322,7 @@ export function PGListings() {
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-wide text-gray-400">Starting Price</p>
-                      <p className="mt-1 font-medium text-gray-900">Rs. {startingPrice.toLocaleString()}</p>
+                      <p className="mt-1 font-medium text-gray-900">Rs. {(startingPrice || 0).toLocaleString()}</p>
                     </div>
                   </div>
 
@@ -552,7 +552,7 @@ export function PGListings() {
                   {(selectedListing.room_types || []).map((room, index) => (
                     <div key={`view-room-${index}`} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 text-sm">
                       <span>{room.variant}</span>
-                      <span>Rs. {Math.max(room.price_ac, room.price_non_ac).toLocaleString()}</span>
+                      <span>Rs. {(Math.max(room.price_ac || 0, room.price_non_ac || 0) || 0).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>

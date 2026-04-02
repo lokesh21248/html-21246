@@ -335,7 +335,7 @@ export function Dashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-500">
-                        {new Date(booking.created_at).toLocaleDateString()}
+                        {booking.created_at ? new Date(booking.created_at).toLocaleDateString() : "N/A"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

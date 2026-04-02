@@ -240,10 +240,10 @@ export function Bookings() {
                         <div className="text-xs text-gray-500">{booking.pg_listings?.location || "N/A"}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        <div>IN: {new Date(booking.check_in).toLocaleDateString()}</div>
-                        <div>OUT: {new Date(booking.check_out).toLocaleDateString()}</div>
+                        <div>IN: {booking.check_in ? new Date(booking.check_in).toLocaleDateString() : "N/A"}</div>
+                        <div>OUT: {booking.check_out ? new Date(booking.check_out).toLocaleDateString() : "N/A"}</div>
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">Rs. {booking.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">Rs. {booking.amount?.toLocaleString() || "0"}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${config.color}`}>
                           <StatusIcon className="h-3 w-3" />
@@ -366,15 +366,15 @@ export function Bookings() {
                 <div className="mt-3 space-y-2 text-sm text-gray-700">
                   <div>ID: {selectedBooking.id}</div>
                   <div>Status: {selectedBooking.status}</div>
-                  <div>Amount: Rs. {selectedBooking.amount.toLocaleString()}</div>
+                  <div>Amount: Rs. {selectedBooking.amount?.toLocaleString() || "0"}</div>
                 </div>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4">
                 <p className="text-xs uppercase tracking-wide text-gray-400">Dates</p>
                 <div className="mt-3 space-y-2 text-sm text-gray-700">
-                  <div>Check-In: {new Date(selectedBooking.check_in).toLocaleDateString()}</div>
-                  <div>Check-Out: {new Date(selectedBooking.check_out).toLocaleDateString()}</div>
-                  <div>Created: {new Date(selectedBooking.created_at).toLocaleDateString()}</div>
+                  <div>Check-In: {selectedBooking.check_in ? new Date(selectedBooking.check_in).toLocaleDateString() : "N/A"}</div>
+                  <div>Check-Out: {selectedBooking.check_out ? new Date(selectedBooking.check_out).toLocaleDateString() : "N/A"}</div>
+                  <div>Created: {selectedBooking.created_at ? new Date(selectedBooking.created_at).toLocaleDateString() : "N/A"}</div>
                 </div>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4">
