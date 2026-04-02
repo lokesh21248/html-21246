@@ -18,6 +18,11 @@ async function login(req, res) {
   });
 
   if (error || !data?.session?.access_token || !data.user) {
+    console.error('SUPABASE LOGIN ERROR:', {
+      message: error?.message,
+      status: error?.status,
+      email: email
+    });
     throw new AppError('Invalid email or password', 401);
   }
 
