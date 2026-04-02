@@ -49,10 +49,9 @@ export interface FoodMenu {
 export interface Booking {
   id: string;
   user_id: string;
-  listing_id: string;
+  pg_id: string;           // actual DB column (was: listing_id)
   check_in: string;
   check_out: string;
-  duration?: string;
   amount: number;
   status: "pending" | "confirmed" | "cancelled" | "completed";
   created_at: string;

@@ -2,8 +2,8 @@
 
 const { Resend } = require('resend');
 
-// Initialize Resend with the API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend with the API key or a dummy key to prevent server crash
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy123456789');
 
 // The email address registered with Resend (required for testing without a domain)
 const ADMIN_EMAIL = 'ramireddylokeshreddy@gmail.com'; 

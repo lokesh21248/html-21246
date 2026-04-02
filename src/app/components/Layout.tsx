@@ -63,9 +63,8 @@ export function Layout() {
   ];
 
   const handleLogout = () => {
-    logout();
     setShowUserMenu(false);
-    navigate("/login", { replace: true });
+    logout(); // ProtectedRoute will automatically intercept and redirect to /login
   };
 
   const handleQuickSearch = () => {
@@ -306,16 +305,14 @@ export function Layout() {
                       <p className="font-semibold text-gray-900">{displayName}</p>
                       <p className="text-xs text-gray-500 mt-1">{displayEmail}</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        navigate("/users");
-                      }}
+                    <Link
+                      to="/users"
+                      onClick={() => setShowUserMenu(false)}
                       className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-3 text-gray-700 transition-colors"
                     >
                       <User className="w-4 h-4" />
                       <span className="text-sm">My Profile</span>
-                    </button>
+                    </Link>
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
@@ -328,7 +325,10 @@ export function Layout() {
                     </button>
                     <div className="border-t border-gray-200 my-2" />
                     <button
-                      onClick={handleLogout}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleLogout();
+                      }}
                       className="w-full px-4 py-2 hover:bg-red-50 flex items-center gap-3 text-red-600 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />

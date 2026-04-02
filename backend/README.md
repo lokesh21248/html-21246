@@ -160,8 +160,18 @@ All responses follow this shape:
 
 ---
 
-## Rate Limiting
+---
 
-- **100 requests per minute** per IP address
-- Returns `429 Too Many Requests` when exceeded
-- Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+## 🧪 Testing
+
+### API Integration Tests (Jest)
+Run the backend unit and integration tests:
+```bash
+npm test
+```
+
+### Database Migrations
+To update or reset the database:
+1. Open the [Supabase Dashboard](https://supabase.com).
+2. Go to **SQL Editor**.
+3. Run the contents of `migrate.sql` (located in the backend root).
