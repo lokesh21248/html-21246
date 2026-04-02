@@ -13,7 +13,7 @@ const BASE_URL =
   import.meta.env.NEXT_PUBLIC_API_URL ||
   (import.meta.env.DEV
     ? "/api/v1"
-    : "https://admin-backend-tcys.onrender.com/api/v1");
+    : "https://api.nearpg.work.gd/api/v1");
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") {
