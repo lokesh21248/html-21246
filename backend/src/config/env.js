@@ -14,6 +14,7 @@ const REQUIRED_VARS = [
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://html-21246.vercel.app',
+  'https://website-admin-21246.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
