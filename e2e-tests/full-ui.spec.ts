@@ -224,8 +224,19 @@ test.describe('Listings', () => {
     await expect(addBtn).toBeVisible({ timeout: 8000 });
   });
 
-
-
+  test('add property dialog opens on button click', async ({ page }) => {
+    await page.goto('/pgs');
+    await page.waitForTimeout(500);
+    
+    // Click Add Property button
+    const addBtn = page.locator('button:has-text("Add Property")').first();
+    await addBtn.click();
+    await page.waitForTimeout(500);
+    
+    // Verify dialog/form appears by checking for form elements
+    const formElements = page.locator('input[name="name"], textarea, [role="dialog"]').first();
+    await expect(formElements).toBeVisible({ timeout: 5000 });
+  });
 
 
 });
